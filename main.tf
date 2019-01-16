@@ -2,7 +2,7 @@ data "template_file" "user_data" {
   template = "${file("${path.module}/user_data.sh")}"
 
   vars {
-    aws_region  = "${data.aws_region.this}"
+    aws_region  = "${var.region}"
     bucket_name = "${var.name}"
   }
 }
