@@ -2,13 +2,13 @@ data "template_file" "user_data" {
   template = "${file("${path.module}/user_data.sh")}"
 
   vars {
-    aws_region  = "${var.region}"
-    bucket_name = "${var.bucket_name}"
+    aws_region  = "${data.aws_region.this}"
+    bucket_name = "${var.name}"
   }
 }
 
 resource "aws_s3_bucket" "bucket" {
-  bucket = "${var.bucket_name}"
+  bucket = "${var.name}"
   acl    = "bucket-owner-full-control"
 
   versioning {
@@ -45,6 +45,7 @@ resource "aws_s3_bucket" "bucket" {
 }
 
 resource "aws_security_group" "bastion_host_security_group" {
+  name_prefix = "${var.name}-external-"
   description = "Enable SSH access to the bastion host from external via SSH port"
   vpc_id      = "${var.vpc_id}"
 
@@ -76,10 +77,16 @@ resource "aws_security_group" "bastion_host_security_group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = "${merge(var.tags)}"
+  tags = "${merge(
+    var.tags,
+    map (
+      "Name", "${var.name}-external"
+    )
+  )}"
 }
 
 resource "aws_security_group" "private_instances_security_group" {
+  name_prefix = "${var.name}-internal-"
   description = "Enable SSH access to the Private instances from the bastion via SSH port"
   vpc_id      = "${var.vpc_id}"
 
@@ -93,11 +100,17 @@ resource "aws_security_group" "private_instances_security_group" {
     ]
   }
 
-  tags = "${merge(var.tags)}"
+  tags = "${merge(
+    var.tags,
+    map (
+      "Name", "${var.name}-internal"
+    )
+  )}"
 }
 
 resource "aws_iam_role" "bastion_host_role" {
-  path = "/"
+  name_prefix = "${var.name}-role-"
+  path        = "/"
 
   assume_role_policy = <<EOF
 {
@@ -120,7 +133,8 @@ EOF
 }
 
 resource "aws_iam_role_policy" "bastion_host_role_policy" {
-  role = "${aws_iam_role.bastion_host_role.id}"
+  name_prefix = "${var.name}-policy-"
+  role        = "${aws_iam_role.bastion_host_role.id}"
 
   policy = <<EOF
 {
@@ -168,6 +182,7 @@ resource "aws_route53_record" "bastion_record_name" {
 }
 
 resource "aws_lb" "bastion_lb" {
+  name     = "${var.name}"
   internal = "${var.is_lb_private}"
 
   subnets = [
@@ -179,6 +194,7 @@ resource "aws_lb" "bastion_lb" {
 }
 
 resource "aws_lb_target_group" "bastion_lb_target_group" {
+  name        = "${var.name}-ssh"
   port        = "${var.public_ssh_port}"
   protocol    = "TCP"
   vpc_id      = "${var.vpc_id}"
@@ -209,7 +225,7 @@ resource "aws_iam_instance_profile" "bastion_host_profile" {
 }
 
 resource "aws_launch_configuration" "bastion_launch_configuration" {
-  name_prefix                 = "${var.bastion_launch_configuration_name}"
+  name_prefix                 = "${var.name}-"
   image_id                    = "${data.aws_ami.amazon-linux-2.id}"
   instance_type               = "t2.nano"
   associate_public_ip_address = "${var.associate_public_ip_address}"
@@ -229,7 +245,7 @@ resource "aws_launch_configuration" "bastion_launch_configuration" {
 }
 
 resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
-  name                 = "ASG-${aws_launch_configuration.bastion_launch_configuration.name}"
+  name                 = "${aws_launch_configuration.bastion_launch_configuration.name}"
   launch_configuration = "${aws_launch_configuration.bastion_launch_configuration.name}"
   max_size             = "${var.bastion_instance_count}"
   min_size             = "${var.bastion_instance_count}"

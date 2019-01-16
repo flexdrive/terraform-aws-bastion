@@ -1,5 +1,5 @@
-variable "bucket_name" {
-  description = "Bucket name were the bastion will store the logs"
+variable "name" {
+  description = "Name of the module that will drive resource names via convention"
 }
 
 variable "bucket_versioning" {
@@ -12,8 +12,6 @@ variable "tags" {
   default     = {}
   type        = "map"
 }
-
-variable "region" {}
 
 variable "cidrs" {
   description = "List of CIDRs than can access to the bastion. Default : 0.0.0.0/0"
@@ -43,11 +41,6 @@ variable "hosted_zone_name" {
 
 variable "bastion_record_name" {
   description = "DNS record name to use for the bastion"
-  default     = ""
-}
-
-variable "bastion_launch_configuration_name" {
-  description = "Bastion Launch configuration Name, will also be used for the ASG"
   default     = ""
 }
 
