@@ -274,6 +274,12 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
     "OldestLaunchConfiguration",
   ]
 
+  tags = [{
+    key                 = "Name"
+    value               = "${var.name}-instance"
+    propagate_at_launch = true
+  }]
+
   lifecycle {
     create_before_destroy = true
   }
